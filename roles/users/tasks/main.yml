@@ -1,0 +1,8 @@
+- name: Create workshop users
+  ansible.builtin.user:
+    name: "{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+    password: "{{ (participant_password_prefix ~ '%02d' | format(item)) | password_hash('sha512') }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+  loop: "{{ range(participant_start, participant_end + 1) | list }}"
