@@ -2,17 +2,5 @@
   hosts: workshop_vms
   become: true
 
-  tasks:
-    - name: Display target VM
-      ansible.builtin.debug:
-        msg: >-
-          Configuring {{ inventory_hostname }}
-          for participants {{ participant_start }}-{{ participant_end }}
-
-    - name: Display participant configuration
-      ansible.builtin.debug:
-        msg:
-          - "Username prefix: {{ participant_username_prefix }}"
-          - "Password prefix: {{ participant_password_prefix }}"
-          - "App port range: {{ participant_app_port_base + participant_start }}-{{ participant_app_port_base + participant_end }}"
-          - "MySQL port: {{ mysql_port }}"
+  roles:
+    - common
