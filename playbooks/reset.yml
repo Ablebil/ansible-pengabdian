@@ -1,0 +1,8 @@
+- name: Reset workshop VMs
+  hosts: workshop_vms
+  become: true
+
+  tasks:
+    - name: Placeholder
+      ansible.builtin.debug:
+        msg: "Reset playbook is not implemented yet."

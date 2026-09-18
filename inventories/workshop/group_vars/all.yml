@@ -1,0 +1,8 @@
+workshop_name: "modern-deployment"
+participant_username_prefix: "user"
+participant_password_prefix: "ayojoinicn"
+participant_app_port_base: 3000
+mysql_port: 3306
+mysql_database_prefix: "workshop_"
+nodejs_version: "22"
+workshop_timezone: "Asia/Jakarta"
