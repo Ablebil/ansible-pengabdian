@@ -12,19 +12,12 @@
     state: started
     enabled: true
 
-- name: Create participant databases
-  community.mysql.mysql_db:
-    name: "{{ mysql_database_prefix }}{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
-    state: present
-    login_unix_socket: /var/run/mysqld/mysqld.sock
-  loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
-
 - name: Create participant MySQL users
   community.mysql.mysql_user:
     name: "{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
     plugin: caching_sha2_password
     plugin_auth_string: "{{ participant_password_prefix }}{{ '%02d' | format(item) }}"
-    priv: "{{ mysql_database_prefix }}{{ participant_username_prefix }}{{ '%02d' | format(item) }}.*:ALL"
+    priv: "*.*:CREATE,DROP,ALTER,INDEX,INSERT,SELECT,UPDATE,DELETE,CREATE TEMPORARY TABLES,LOCK TABLES"
     host: localhost
     state: present
     login_unix_socket: /var/run/mysqld/mysqld.sock
