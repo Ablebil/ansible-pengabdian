@@ -70,4 +70,4 @@
     name: "{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
     groups: docker
     append: true
-  loop: "{{ range(participant_start, participant_end + 1) | list }}"
+  loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"

@@ -5,4 +5,4 @@
     shell: /bin/bash
     create_home: true
     state: present
-  loop: "{{ range(participant_start, participant_end + 1) | list }}"
+  loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"

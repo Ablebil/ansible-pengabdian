@@ -4,6 +4,13 @@
     state: present
     update_cache: true
 
+- name: Configure Redis database count
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: "^databases "
+    line: "databases {{ redis_database_count }}"
+  notify: Restart Redis
+
 - name: Configure Redis to listen on localhost
   ansible.builtin.lineinfile:
     path: /etc/redis/redis.conf

@@ -17,7 +17,7 @@
     name: "{{ mysql_database_prefix }}{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
     state: present
     login_unix_socket: /var/run/mysqld/mysqld.sock
-  loop: "{{ range(participant_start, participant_end + 1) | list }}"
+  loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
 
 - name: Create participant MySQL users
   community.mysql.mysql_user:
@@ -28,4 +28,4 @@
     host: localhost
     state: present
     login_unix_socket: /var/run/mysqld/mysqld.sock
-  loop: "{{ range(participant_start, participant_end + 1) | list }}"
+  loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"

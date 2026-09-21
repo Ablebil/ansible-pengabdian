@@ -4,5 +4,7 @@ participant_password_prefix: "ayojoinicn"
 participant_app_port_base: 3000
 mysql_port: 3306
 mysql_database_prefix: "workshop_"
+redis_port: 6379
+redis_database_count: 71
 nodejs_version: "22"
 workshop_timezone: "Asia/Jakarta"
