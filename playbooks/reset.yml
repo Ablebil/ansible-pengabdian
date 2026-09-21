@@ -1,8 +1,61 @@
-- name: Reset workshop VMs
+- name: Reset participant environment
   hosts: workshop_vms
   become: true
 
   tasks:
-    - name: Placeholder
+    # docker
+    - name: Stop all Docker containers
+      ansible.builtin.shell:
+        cmd: |
+          containers=$(docker ps -aq)
+          if [ -n "$containers" ]; then
+            docker stop $containers
+          fi
+      changed_when: false
+
+    - name: Remove all Docker containers
+      ansible.builtin.shell:
+        cmd: |
+          containers=$(docker ps -aq)
+          if [ -n "$containers" ]; then
+            docker rm -f $containers
+          fi
+      changed_when: false
+
+    - name: Remove unused Docker resources
+      ansible.builtin.command:
+        cmd: docker system prune -af --volumes
+      changed_when: false
+
+    # redis participant databases
+    - name: Flush participant Redis databases
+      ansible.builtin.command:
+        cmd: "redis-cli -p {{ redis_port }} -n {{ item }} FLUSHDB"
+      changed_when: true
+      loop: "{{ range(1, redis_database_count) | list }}"
+
+    # mysql participant users
+    - name: Remove participant MySQL users
+      community.mysql.mysql_user:
+        name: "{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+        host: localhost
+        state: absent
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
+    # linux participant users
+
+    - name: Remove participant Linux users
+      ansible.builtin.user:
+        name: "{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+        state: absent
+        remove: true
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
+    # final message
+    - name: Reset completed
       ansible.builtin.debug:
-        msg: "Reset playbook is not implemented yet."
+        msg: >-
+          Participant environment reset completed for participants
+          {{ participant_start }} through {{ participant_end }}
+          with step {{ participant_step }}.
