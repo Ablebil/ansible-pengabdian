@@ -1,0 +1,124 @@
+- name: Verify workshop VMs
+  hosts: workshop_vms
+  become: true
+
+  tasks:
+    # linux users
+    - name: Verify participant Linux users
+      ansible.builtin.command:
+        cmd: "id {{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+      changed_when: false
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
+    # node.js
+    - name: Verify Node.js
+      ansible.builtin.command:
+        cmd: node --version
+      register: node_version
+      changed_when: false
+
+    - name: Show Node.js version
+      ansible.builtin.debug:
+        msg: "Node.js: {{ node_version.stdout }}"
+
+    - name: Verify npm
+      ansible.builtin.command:
+        cmd: npm --version
+      register: npm_version
+      changed_when: false
+
+    - name: Show npm version
+      ansible.builtin.debug:
+        msg: "npm: {{ npm_version.stdout }}"
+
+    # mysql
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Verify MySQL service is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['mysql.service'].state == 'running'
+        fail_msg: "MySQL service is not running."
+
+    - name: Verify participant MySQL users
+      ansible.builtin.command:
+        cmd: >
+          mysql
+          --protocol=socket
+          --socket=/var/run/mysqld/mysqld.sock
+          --batch
+          --skip-column-names
+          -e "SELECT User
+              FROM mysql.user
+              WHERE User = '{{ participant_username_prefix }}{{ '%02d' | format(item) }}'
+              AND Host = 'localhost';"
+      register: mysql_user_check
+      changed_when: false
+      failed_when:
+        - mysql_user_check.rc != 0
+        - mysql_user_check.stdout | trim != participant_username_prefix ~ ('%02d' | format(item))
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
+    # redis
+    - name: Verify Redis service is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['redis-server.service'].state == 'running'
+        fail_msg: "Redis service is not running."
+
+    - name: Verify Redis responds with PONG
+      ansible.builtin.command:
+        cmd: "redis-cli -p {{ redis_port }} ping"
+      register: redis_ping
+      changed_when: false
+
+    - name: Assert Redis response
+      ansible.builtin.assert:
+        that:
+          - redis_ping.stdout | trim == "PONG"
+        fail_msg: "Redis did not respond with PONG."
+
+    - name: Verify Redis database count
+      ansible.builtin.command:
+        cmd: "redis-cli -p {{ redis_port }} CONFIG GET databases"
+      register: redis_database_config
+      changed_when: false
+
+    - name: Assert Redis database count
+      ansible.builtin.assert:
+        that:
+          - redis_database_config.stdout_lines[1] | int == redis_database_count
+        fail_msg: >-
+          Redis database count is
+          {{ redis_database_config.stdout_lines[1] }},
+          expected {{ redis_database_count }}.
+
+    # docker
+    - name: Verify Docker
+      ansible.builtin.command:
+        cmd: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Show Docker version
+      ansible.builtin.debug:
+        msg: "Docker: {{ docker_version.stdout }}"
+
+    - name: Verify Docker Compose
+      ansible.builtin.command:
+        cmd: docker compose version
+      register: docker_compose_version
+      changed_when: false
+
+    - name: Show Docker Compose version
+      ansible.builtin.debug:
+        msg: "Docker Compose: {{ docker_compose_version.stdout }}"
+
+    # final verification message
+    - name: Verification completed
+      ansible.builtin.debug:
+        msg: >-
+          Workshop VM verification passed for participants
+          {{ participant_start }} through {{ participant_end }}
+          with step {{ participant_step }}.
