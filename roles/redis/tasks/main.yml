@@ -1,0 +1,19 @@
+- name: Install Redis
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+    update_cache: true
+
+- name: Configure Redis to listen on localhost
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: "^bind "
+    line: "bind 127.0.0.1 ::1"
+    backup: true
+  notify: Restart Redis
+
+- name: Ensure Redis service is running
+  ansible.builtin.service:
+    name: redis-server
+    state: started
+    enabled: true
