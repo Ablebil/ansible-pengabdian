@@ -3,8 +3,20 @@ participant_username_prefix: "user"
 participant_password_prefix: "ayojoinicn"
 participant_app_port_base: 3000
 mysql_port: 3306
-mysql_database_prefix: "workshop_"
+participant_database_prefix: "blue_save_"
 redis_port: 6379
 redis_database_count: 71
 nodejs_version: "22"
 workshop_timezone: "Asia/Jakarta"
+
+docker_prepull_images:
+  - mysql:8.0
+  - redis:7-alpine
+  - nickfedor/watchtower:latest
+
+docker_daemon_config:
+  registry-mirrors: []
+  log-driver: json-file
+  log-opts:
+    max-size: "10m"
+    max-file: "3"

@@ -59,11 +59,28 @@
       - docker-compose-plugin
     state: present
 
+- name: Configure Docker daemon (log rotation)
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: "{{ docker_daemon_config | to_nice_json }}\n"
+    mode: "0644"
+  notify: Restart Docker
+
 - name: Ensure Docker service is running
   ansible.builtin.service:
     name: docker
     state: started
     enabled: true
+
+- name: Apply Docker daemon changes before pulling images
+  ansible.builtin.meta: flush_handlers
+
+- name: Pre-pull shared workshop images
+  ansible.builtin.command:
+    cmd: "docker pull {{ item }}"
+  register: docker_prepull
+  changed_when: "'Downloaded newer image' in docker_prepull.stdout"
+  loop: "{{ docker_prepull_images }}"
 
 - name: Add workshop users to docker group
   ansible.builtin.user:
