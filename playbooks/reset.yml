@@ -34,6 +34,14 @@
       changed_when: true
       loop: "{{ range(1, redis_database_count) | list }}"
 
+    # mysql participant databases
+    - name: Drop participant MySQL databases
+      community.mysql.mysql_db:
+        name: "{{ participant_database_prefix }}{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+        state: absent
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
     # mysql participant users
     - name: Remove participant MySQL users
       community.mysql.mysql_user:
@@ -44,12 +52,24 @@
       loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
 
     # linux participant users
+    - name: Stop participant sessions, user services, and processes
+      ansible.builtin.shell:
+        cmd: |
+          u="{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+          id "$u" >/dev/null 2>&1 || exit 0
+          loginctl disable-linger "$u" || true
+          loginctl terminate-user "$u" || true
+          pkill -KILL -u "$u" || true
+          sleep 1
+      changed_when: true
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
 
     - name: Remove participant Linux users
       ansible.builtin.user:
         name: "{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
         state: absent
         remove: true
+        force: true
       loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
 
     # final message
@@ -59,3 +79,4 @@
           Participant environment reset completed for participants
           {{ participant_start }} through {{ participant_end }}
           with step {{ participant_step }}.
+          Run playbooks/site.yml again to recreate users and re-pull shared images.
