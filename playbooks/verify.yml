@@ -55,9 +55,37 @@
               AND Host = 'localhost';"
       register: mysql_user_check
       changed_when: false
-      failed_when:
-        - mysql_user_check.rc != 0
-        - mysql_user_check.stdout | trim != participant_username_prefix ~ ('%02d' | format(item))
+      failed_when: >-
+        mysql_user_check.rc != 0 or
+        (mysql_user_check.stdout | trim) != (participant_username_prefix ~ ('%02d' | format(item)))
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
+    - name: Verify participant can create database and foreign keys
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          u="{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+          db="{{ participant_database_prefix }}${u}"
+          export MYSQL_PWD="{{ participant_password_prefix }}{{ '%02d' | format(item) }}"
+          q() { mysql -h 127.0.0.1 -P {{ mysql_port }} -u "$u" --batch --skip-column-names -e "$1"; }
+          existed="$(q "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = '${db}';")"
+          q "CREATE DATABASE IF NOT EXISTS \`${db}\`;
+             DROP TABLE IF EXISTS \`${db}\`.__verify_c, \`${db}\`.__verify_p;
+             CREATE TABLE \`${db}\`.__verify_p (id INT PRIMARY KEY);
+             CREATE TABLE \`${db}\`.__verify_c (id INT PRIMARY KEY, pid INT,
+               FOREIGN KEY (pid) REFERENCES \`${db}\`.__verify_p(id));
+             DROP TABLE \`${db}\`.__verify_c, \`${db}\`.__verify_p;"
+          if [ -z "$existed" ]; then
+            q "DROP DATABASE \`${db}\`;"
+          fi
+      changed_when: false
+      loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
+    - name: Verify systemd linger is enabled
+      ansible.builtin.stat:
+        path: "/var/lib/systemd/linger/{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+      register: linger_check
+      failed_when: not linger_check.stat.exists
       loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
 
     # redis
@@ -114,6 +142,34 @@
     - name: Show Docker Compose version
       ansible.builtin.debug:
         msg: "Docker Compose: {{ docker_compose_version.stdout }}"
+
+    - name: Read Docker registry mirrors
+      ansible.builtin.command:
+        cmd: "docker info --format '{% raw %}{{json .RegistryConfig.Mirrors}}{% endraw %}'"
+      register: docker_mirrors
+      changed_when: false
+
+    - name: Assert no Docker registry mirror is active
+      ansible.builtin.assert:
+        that:
+          - docker_mirrors.stdout | trim in ['[]', 'null']
+        fail_msg: >-
+          Registry mirror masih aktif: {{ docker_mirrors.stdout }}.
+          Isi /etc/docker/daemon.json dengan "registry-mirrors": [] lalu
+          jalankan systemctl reload docker.
+
+    - name: Verify shared images are pre-pulled
+      ansible.builtin.command:
+        cmd: "docker image inspect {{ item }}"
+      changed_when: false
+      loop: "{{ docker_prepull_images }}"
+
+    - name: Show host capacity (35 Compose stack per VM)
+      ansible.builtin.debug:
+        msg: >-
+          CPU {{ ansible_facts['processor_vcpus'] }} vCPU,
+          RAM {{ (ansible_facts['memtotal_mb'] / 1024) | round(1) }} GiB,
+          disk / free {{ ((ansible_facts['mounts'] | selectattr('mount', 'equalto', '/') | first).size_available / 1024**3) | round(1) }} GiB
 
     # final verification message
     - name: Verification completed
