@@ -17,7 +17,8 @@
     name: "{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
     plugin: caching_sha2_password
     plugin_auth_string: "{{ participant_password_prefix }}{{ '%02d' | format(item) }}"
-    priv: "*.*:CREATE,DROP,ALTER,INDEX,INSERT,SELECT,UPDATE,DELETE,CREATE TEMPORARY TABLES,LOCK TABLES"
+    priv: "{{ participant_database_prefix }}{{ participant_username_prefix }}{{ '%02d' | format(item) }}.*:ALL"
+    append_privs: false
     host: localhost
     state: present
     login_unix_socket: /var/run/mysqld/mysqld.sock
