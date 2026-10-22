@@ -4,5 +4,12 @@
     password: "{{ (participant_password_prefix ~ '%02d' | format(item)) | password_hash('sha512') }}"
     shell: /bin/bash
     create_home: true
+    update_password: on_create
     state: present
+  loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
+
+- name: Enable systemd linger for workshop users
+  ansible.builtin.command:
+    cmd: "loginctl enable-linger {{ participant_username_prefix }}{{ '%02d' | format(item) }}"
+    creates: "/var/lib/systemd/linger/{{ participant_username_prefix }}{{ '%02d' | format(item) }}"
   loop: "{{ range(participant_start, participant_end + 1, participant_step) | list }}"
